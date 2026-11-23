@@ -6,10 +6,46 @@ import { digest, validSignature } from "@/lib/verification";
 export const paymentMode = () => process.env.PAYMENT_MODE === "live" ? "live" as const : "test" as const;
 export function checkoutMode() {
     const mode = paymentMode();
-    return process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY &&
-        process.env.RAZORPAY_KEY_ID?.startsWith("rzp_" + mode + "_") && process.env.RAZORPAY_KEY_SECRET &&
-        process.env.RAZORPAY_WEBHOOK_SECRET && (process.env.RECEIPT_SECRET?.length ?? 0) >= 32 &&
-        (mode === "test" || process.env.CONTACT_EMAIL) ? mode : "setup" as const;
+    const required = [
+        "SUPABASE_URL",
+        "SUPABASE_SERVICE_ROLE_KEY",
+        "RAZORPAY_KEY_ID",
+        "RAZORPAY_KEY_SECRET",
+        "RAZORPAY_WEBHOOK_SECRET",
+        "RECEIPT_SECRET",
+    ];
+    const issues = required.filter(name => !process.env[name]?.trim());
+    if (process.env.SUPABASE_URL?.trim()) {
+        try {
+            const url = new URL(process.env.SUPABASE_URL.trim());
+            if (url.protocol !== "https:") {
+                issues.push("SUPABASE_URL must use https");
+            }
+            // The REST host is <project-ref>.supabase.co. A ".supabase.com"
+            // host does not resolve and would fail every ledger call.
+            if (url.hostname.endsWith(".supabase.com")) {
+                issues.push("SUPABASE_URL must use .supabase.co, not .supabase.com");
+            }
+        }
+        catch {
+            issues.push("SUPABASE_URL must be a valid URL");
+        }
+    }
+    if (process.env.RAZORPAY_KEY_ID && !process.env.RAZORPAY_KEY_ID.startsWith("rzp_" + mode + "_")) {
+        issues.push("RAZORPAY_KEY_ID must match PAYMENT_MODE");
+    }
+    if (process.env.RECEIPT_SECRET && process.env.RECEIPT_SECRET.length < 32) {
+        issues.push("RECEIPT_SECRET must contain at least 32 characters");
+    }
+    if (mode === "live" && !process.env.CONTACT_EMAIL?.trim()) {
+        issues.push("CONTACT_EMAIL");
+    }
+    if (issues.length) {
+        // Log setting names only. Never log credentials or their values.
+        console.warn("[checkout-config] Missing or invalid settings:", issues.join(", "));
+        return "setup" as const;
+    }
+    return mode;
 }
 export function database() {
     if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY)

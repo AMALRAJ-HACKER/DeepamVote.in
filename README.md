@@ -26,7 +26,7 @@ The stack uses Next.js App Router, TypeScript, Tailwind CSS, a locally owned sha
 ## Connect the test ledger
 
 1. Create a dedicated Supabase test project. Apply [the migration](supabase/migrations/001_participation.sql) once through the SQL editor or your migration pipeline. All four tables have RLS enabled. Anonymous and authenticated roles have no table or RPC permissions.
-2. Put the project URL and its server service key in `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`. Do not put that key in a public variable. The aggregate results endpoint is the public read interface. The private receipt endpoint requires a signed bearer reference.
+2. Put the project URL and its server service key in `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`. The REST project URL is `https://<project-ref>.supabase.co` — a `.supabase.com` host does not resolve. Do not put that key in a public variable. The aggregate results endpoint is the public read interface. The private receipt endpoint requires a signed bearer reference.
 3. Generate a private 32-byte receipt signing secret with `openssl rand -hex 32` and set `RECEIPT_SECRET`. Keep it stable. Rotating it invalidates previously issued receipt access tokens.
 4. In Razorpay Test Mode, create a key pair and set `RAZORPAY_KEY_ID` and `RAZORPAY_KEY_SECRET`. Set `PAYMENT_MODE=test`. Use automatic capture. Set a distinct random `RAZORPAY_WEBHOOK_SECRET` on the server and the matching Razorpay endpoint.
 5. Configure an HTTPS webhook pointing to `/api/webhook` on a stable, reachable deployment. Subscribe to **payment.captured** and **payment.failed**. Razorpay cannot deliver webhooks to localhost. For local end-to-end testing use a development HTTPS tunnel or a reachable test deployment.
